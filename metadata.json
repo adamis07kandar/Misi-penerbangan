@@ -1,0 +1,6 @@
+{
+  "name": "Misi Rimba: Penerbangan Sang Kancil",
+  "description": "Permainan 3D penerbangan interaktif pendidikan: Menguji kefahaman kisah dongeng Sang Kancil, Sang Buaya & Sang Kerbau dengan menerbangkan pesawat melepasi gerbang jawapan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

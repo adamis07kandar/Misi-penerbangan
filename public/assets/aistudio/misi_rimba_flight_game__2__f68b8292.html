@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Misi Rimba: Sang Kancil, Sang Buaya & Sang Kerbau</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2pdf.js for PDF Certificate Download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Outfit:wght@400;600;800&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            touch-action: none;
+            background-color: #0284c7;
+        }
+        .font-fredoka {
+            font-family: 'Fredoka', cursive;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI OVERLAY -->
+    <div id="ui-layer" class="relative z-10 w-full h-screen pointer-events-none flex flex-col justify-between p-3 md:p-5">
+        
+        <!-- TOP HUD & QUESTION BANNER CONTAINER (ALL AT TOP) -->
+        <div class="w-full max-w-5xl mx-auto pointer-events-auto space-y-2">
+            <!-- TOP BAR (HUD) -->
+            <div class="flex justify-between items-center gap-2">
+                <!-- Stage & Question Tracker -->
+                <div class="glass-panel text-white px-3 py-1.5 md:px-4 md:py-2 rounded-2xl shadow-xl flex items-center gap-2.5">
+                    <div class="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-amber-500 flex items-center justify-center font-black text-lg text-amber-950 shadow-inner">
+                        <i class="fa-solid font-fredoka" id="hud-stage-num">1</i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase tracking-wider text-amber-300 font-bold" id="hud-stage-title">TAHAP 1: MUDAH</div>
+                        <div class="text-xs md:text-sm font-extrabold text-white" id="hud-question-tracker">Soalan 1 / 6</div>
+                    </div>
+                </div>
+
+                <!-- CONTROLS & SOUND SETTINGS BUTTONS -->
+                <div class="flex items-center gap-1.5 md:gap-2">
+                    <button id="btn-invert-toggle" class="text-slate-200 hover:text-white text-[11px] md:text-xs bg-slate-800/80 hover:bg-slate-700/80 px-2.5 py-1.5 rounded-xl border border-amber-400/40 flex items-center gap-1.5 font-semibold transition shadow-md">
+                        <i class="fa-solid fa-arrows-up-down text-amber-400"></i>
+                        <span id="invert-label" class="hidden sm:inline">Kawalan: Standard</span>
+                    </button>
+                    <button id="btn-sound-toggle" class="text-slate-300 hover:text-white text-xs bg-slate-800/80 hover:bg-slate-700/80 p-2 rounded-xl border border-slate-600/50 shadow-md">
+                        <i class="fa-solid fa-volume-high" id="sound-icon"></i>
+                    </button>
+                </div>
+
+                <!-- Score & Lives -->
+                <div class="glass-panel text-white px-3 py-1.5 md:px-4 md:py-2 rounded-2xl shadow-xl flex items-center gap-4">
+                    <div class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-star text-amber-400 text-base md:text-lg animate-pulse"></i>
+                        <div>
+                            <div class="text-[9px] uppercase text-slate-300 font-bold">Mata</div>
+                            <div class="text-sm md:text-base font-black text-amber-300 leading-none" id="hud-score">0</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-heart text-rose-500 text-base md:text-lg"></i>
+                        <div>
+                            <div class="text-[9px] uppercase text-slate-300 font-bold">Nyawa</div>
+                            <div class="flex gap-0.5 mt-0.5" id="hud-lives">
+                                <i class="fa-solid fa-heart text-rose-500 text-xs"></i>
+                                <i class="fa-solid fa-heart text-rose-500 text-xs"></i>
+                                <i class="fa-solid fa-heart text-rose-500 text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTIVE QUESTION & OPTIONS DISPLAY BANNER (NOW MOVED TO TOP) -->
+            <div id="flight-question-banner" class="w-full transition-all duration-300 transform scale-100">
+                <div class="glass-panel rounded-2xl p-3 md:p-3.5 text-white shadow-2xl border border-amber-400/40">
+                    <h2 id="current-question-text" class="text-xs sm:text-sm md:text-base font-bold leading-snug text-amber-100 mb-2">
+                        Siapakah yang meminta pertolongan ketika dihempap oleh pokok?
+                    </h2>
+
+                    <!-- Options Reference Grid arranged horizontally (2 cols on mobile, 4 cols on desktop) -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-1.5 md:gap-2" id="options-mini-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLEAR VIEWPORT SPACE FOR 3D FLIGHT -->
+        <div class="flex-1 pointer-events-none"></div>
+
+        <!-- BOTTOM CONTROLS & TIPS -->
+        <div class="w-full max-w-4xl mx-auto flex justify-between items-end pointer-events-auto">
+            <!-- Instructions / Keyboard hints -->
+            <div class="hidden md:flex glass-panel px-4 py-2 rounded-xl text-white text-xs gap-3 items-center">
+                <span class="font-bold text-amber-300"><i class="fa-solid fa-gamepad mr-1"></i> Kawalan:</span>
+                <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-[10px]">W</kbd>/<kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-[10px]">↑</kbd> Naik</span>
+                <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-[10px]">S</kbd>/<kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-[10px]">↓</kbd> Turun</span>
+                <span><kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-[10px]">A</kbd>/<kbd class="bg-slate-700 px-1.5 py-0.5 rounded text-[10px]">D</kbd> Kiri/Kanan</span>
+                <span>atau Drag Tetikus</span>
+            </div>
+
+            <!-- Mobile Touch Virtual Joystick Container -->
+            <div id="mobile-joystick-zone" class="md:hidden relative w-24 h-24 glass-panel rounded-full flex items-center justify-center border-2 border-white/20 touch-none">
+                <div id="joystick-knob" class="w-10 h-10 bg-amber-400/80 rounded-full shadow-lg border-2 border-white transform transition-transform duration-75"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OVERLAYS (START, STAGE COMPLETE, GAME OVER, VICTORY) -->
+    
+    <!-- START GAME MODAL -->
+    <div id="modal-start" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-card max-w-lg w-full rounded-3xl p-6 md:p-8 text-center shadow-2xl relative overflow-hidden">
+            <div class="w-20 h-20 bg-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-4 text-white text-4xl shadow-lg transform -rotate-3">
+                <i class="fa-solid fa-plane-up"></i>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold font-fredoka text-slate-800 mb-1">Misi Rimba ✈️</h1>
+            <p class="text-amber-600 font-bold text-sm mb-4">Sang Kancil, Sang Buaya & Sang Kerbau</p>
+            
+            <div class="bg-amber-50/80 rounded-2xl p-4 text-left text-xs md:text-sm text-slate-700 mb-6 space-y-2 border border-amber-200">
+                <p class="font-bold text-slate-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-compass text-amber-500"></i> Cara Bermain:
+                </p>
+                <ul class="list-disc list-inside space-y-1 text-slate-600">
+                    <li>Kawal pesawat <b>Twin Turbine</b> terbang melepasi lautan.</li>
+                    <li>Lalui <b>Pintu Jawapan (A, B, C, atau D)</b> yang betul di udara.</li>
+                    <li>Selesaikan <b>Tahap 1 (Mudah)</b> untuk membuka Tahap 2 & 3.</li>
+                    <li>Gunakan papan kekunci, tetikus, atau pad sentuh telefon.</li>
+                </ul>
+            </div>
+
+            <!-- FORM INPUT NAMA & KELAS EJEN -->
+            <form id="start-form" class="text-left space-y-3 mb-6" onsubmit="return false;">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        <i class="fa-solid fa-id-card text-amber-500 mr-1"></i> Nama Ejen
+                    </label>
+                    <input type="text" id="input-agent-name" required placeholder="Contoh: Ejen Ali" 
+                        class="w-full bg-white/90 border-2 border-amber-300 focus:border-amber-500 focus:outline-none rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        <i class="fa-solid fa-graduation-cap text-amber-500 mr-1"></i> Kelas
+                    </label>
+                    <input type="text" id="input-agent-class" required placeholder="Contoh: 5 Cerdik" 
+                        class="w-full bg-white/90 border-2 border-amber-300 focus:border-amber-500 focus:outline-none rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 transition shadow-sm">
+                </div>
+                <button type="submit" id="btn-start-game" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-3.5 px-6 rounded-2xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 text-lg flex items-center justify-center gap-2 mt-2">
+                    <i class="fa-solid fa-plane-departure"></i> MULAKAN PENERBANGAN
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- STAGE PASSED MODAL -->
+    <div id="modal-stage-pass" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-card max-w-lg w-full rounded-3xl p-6 md:p-8 text-center shadow-2xl">
+            <div class="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-4 text-white text-4xl shadow-lg animate-bounce">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black font-fredoka text-slate-800 mb-2" id="stage-pass-title">TAHAP 1 SELESAI!</h2>
+            <p class="text-emerald-600 font-bold text-sm mb-6" id="stage-pass-desc">Syabas! Anda melepasi soalan Mudah. Sedia untuk Tahap Sederhana?</p>
+            
+            <button id="btn-next-stage" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg transition text-lg flex items-center justify-center gap-2">
+                TERUSKAN TAHAP SETERUSNYA <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- GAME OVER MODAL -->
+    <div id="modal-gameover" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden">
+        <div class="glass-card max-w-lg w-full rounded-3xl p-6 md:p-8 text-center shadow-2xl">
+            <div class="w-20 h-20 bg-rose-500 rounded-3xl flex items-center justify-center mx-auto mb-4 text-white text-4xl shadow-lg">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black font-fredoka text-slate-800 mb-2">MISI GAGAL!</h2>
+            <p class="text-slate-600 text-sm mb-6">Minyak pesawat telah habis atau jawapan salah terlalu banyak. Sila cuba lagi!</p>
+            
+            <button id="btn-restart" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-black py-4 px-6 rounded-2xl shadow-lg transition text-lg flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> CUBA LAGI
+            </button>
+        </div>
+    </div>
+
+    <!-- VICTORY / ALL COMPLETED MODAL -->
+    <div id="modal-victory" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden overflow-y-auto">
+        <div class="glass-card max-w-xl w-full rounded-3xl p-5 md:p-6 text-center shadow-2xl my-auto">
+            <div class="w-16 h-16 bg-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-950 text-3xl shadow-lg">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="text-2xl font-black font-fredoka text-slate-800 mb-0.5">TAHNIAH! MISI TAMAT! 🏆</h2>
+            <p class="text-amber-600 font-bold text-xs uppercase tracking-widest mb-3">Wira Kebijaksanaan Rimba</p>
+            
+            <!-- SIJIL PREVIEW CARD (FOR SCREEN DISPLAY & PDF EXPORT) -->
+            <div id="certificate-template" class="bg-gradient-to-b from-amber-50 to-orange-50/60 p-5 rounded-2xl border-4 border-double border-amber-400 shadow-inner text-center relative overflow-hidden mb-4">
+                <!-- Watermark Icon -->
+                <i class="fa-solid fa-award absolute -right-6 -bottom-6 text-amber-200/40 text-9xl pointer-events-none"></i>
+                
+                <div class="text-[10px] font-black uppercase tracking-widest text-amber-800 mb-1">AKADEMI MISI RIMBA</div>
+                <h3 class="text-lg md:text-xl font-bold text-slate-800 font-serif mb-1" style="font-family: 'Cinzel', serif;">SIJIL PENERBANGAN & KEBIJAKSANAAN</h3>
+                <p class="text-[10px] text-slate-500 italic mb-3">Dengan ini disahkan bahawa</p>
+
+                <div class="text-lg md:text-2xl font-black text-amber-700 underline decoration-amber-400 decoration-2 mb-0.5 font-fredoka" id="cert-agent-name">EJEN ALI</div>
+                <div class="text-xs font-bold text-slate-600 mb-3" id="cert-agent-class">KELAS: 5 CERDIK</div>
+
+                <p class="text-xs text-slate-700 leading-snug max-w-md mx-auto mb-3">
+                    Telah berjaya menyempurnakan tugasan penerbangan <b>Misi Rimba</b> serta menjawab kesemua soalan pemahaman cerita <i>"Sang Kancil, Sang Buaya dan Sang Kerbau"</i> dengan cemerlang.
+                </p>
+
+                <div class="grid grid-cols-2 gap-2 max-w-xs mx-auto text-left bg-white/80 p-2.5 rounded-xl border border-amber-200 text-xs mb-3">
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">JUMLAH SKOR:</span>
+                        <strong class="text-amber-600 text-sm font-black" id="cert-score-val">1000 MATA</strong>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">TARIKH PENCAPAIAN:</span>
+                        <strong class="text-slate-800 font-bold" id="cert-date-val">28/10/2026</strong>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-end text-[10px] text-slate-500 pt-2 border-t border-amber-300/60">
+                    <div class="text-left">
+                        <p class="font-bold text-slate-700">AKADEMI PENERBANGAN</p>
+                        <p class="text-[9px]">Sistem Misi Rimba Interaktif</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-slate-800 italic" style="font-family: 'Cinzel', serif;">Sang Kancil</p>
+                        <p class="text-[9px]">Penaung Kebijaksanaan Rimba</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BUTTON ACTIONS -->
+            <div class="space-y-2">
+                <button id="btn-download-pdf" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-3 px-5 rounded-2xl shadow-lg transition text-base flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-pdf text-lg"></i> MUAT TURUN SIJIL (PDF)
+                </button>
+                <button id="btn-play-again" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-2.5 px-5 rounded-2xl shadow transition text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> MAIN SEMULA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME CODE SCRIPT -->
+    <script>
+        // --- COMPLETE QUESTION BANK DATA ---
+        const QUESTIONS = [
+            // Tahap 1: Mudah (1 - 6)
+            {
+                id: 1,
+                stage: 1,
+                stageTitle: "TAHAP 1: MUDAH",
+                text: "Siapakah yang meminta pertolongan ketika dihempap oleh pokok?",
+                options: {
+                    A: "Sang Kancil",
+                    B: "Sang Buaya",
+                    C: "Sang Kerbau",
+                    D: "Sang Harimau"
+                },
+                answer: "B"
+            },
+            {
+                id: 2,
+                stage: 1,
+                stageTitle: "TAHAP 1: MUDAH",
+                text: "Apakah yang menghempap Sang Buaya?",
+                options: {
+                    A: "Batu besar",
+                    B: "Ranting kecil",
+                    C: "Pokok tumbang",
+                    D: "Batang buluh"
+                },
+                answer: "C"
+            },
+            {
+                id: 3,
+                stage: 1,
+                stageTitle: "TAHAP 1: MUDAH",
+                text: "Bagaimanakah Sang Kerbau membantu Sang Buaya?",
+                options: {
+                    A: "Mengangkat pokok menggunakan tanduknya",
+                    B: "Memanggil Sang Kancil",
+                    C: "Menarik Sang Buaya ke sungai",
+                    D: "Mencari makanan untuk Sang Buaya"
+                },
+                answer: "A"
+            },
+            {
+                id: 4,
+                stage: 1,
+                stageTitle: "TAHAP 1: MUDAH",
+                text: "Apakah tindakan Sang Buaya selepas dibantu oleh Sang Kerbau?",
+                options: {
+                    A: "Mengucapkan terima kasih",
+                    B: "Melarikan diri ke hutan",
+                    C: "Menggigit kaki Sang Kerbau",
+                    D: "Membantu Sang Kerbau pula"
+                },
+                answer: "C"
+            },
+            {
+                id: 5,
+                stage: 1,
+                stageTitle: "TAHAP 1: MUDAH",
+                text: "Siapakah yang datang membantu Sang Kerbau ketika dia dalam kesusahan?",
+                options: {
+                    A: "Sang Harimau",
+                    B: "Sang Kancil",
+                    C: "Sang Gajah",
+                    D: "Sang Monyet"
+                },
+                answer: "B"
+            },
+            {
+                id: 6,
+                stage: 1,
+                stageTitle: "TAHAP 1: MUDAH",
+                text: "Apakah yang dilakukan oleh Sang Kancil untuk menyelamatkan Sang Kerbau?",
+                options: {
+                    A: "Menggunakan kebijaksanaan untuk memperdaya Sang Buaya",
+                    B: "Melawan Sang Buaya dengan kekuatan",
+                    C: "Meminta Sang Kerbau melarikan diri sendirian",
+                    D: "Membiarkan Sang Kerbau dalam kesusahan"
+                },
+                answer: "A"
+            },
+            
+            // Tahap 2: Sederhana (7 - 8)
+            {
+                id: 7,
+                stage: 2,
+                stageTitle: "TAHAP 2: SEDERHANA",
+                text: "Berdasarkan ilustrasi Sang Buaya menggigit kaki Sang Kerbau, apakah yang dapat kita fahami tentang sikap Sang Buaya?",
+                options: {
+                    A: "Sang Buaya sangat menghargai pertolongan.",
+                    B: "Sang Buaya tidak mengenang budi.",
+                    C: "Sang Buaya takut akan Sang Kerbau.",
+                    D: "Sang Buaya ingin berkawan dengan Sang Kerbau."
+                },
+                answer: "B"
+            },
+            {
+                id: 8,
+                stage: 2,
+                stageTitle: "TAHAP 2: SEDERHANA",
+                text: "Mengapakah Sang Kancil meminta Sang Buaya mengulangi keadaan ketika dihempap pokok?",
+                options: {
+                    A: "Untuk membantu Sang Buaya berehat.",
+                    B: "Untuk menguji kekuatan Sang Kerbau.",
+                    C: "Untuk memerangkap Sang Buaya semula dan menyelamatkan Sang Kerbau.",
+                    D: "Untuk membolehkan mereka bermain bersama-sama."
+                },
+                answer: "C"
+            },
+
+            // Tahap 3: Sukar (9 - 10)
+            {
+                id: 9,
+                stage: 3,
+                stageTitle: "TAHAP 3: SUKAR",
+                text: "Jika kamu melihat ilustrasi Sang Kancil menunjukkan pokok kepada Sang Buaya, apakah kesimpulan paling tepat tentang rancangan Sang Kancil?",
+                options: {
+                    A: "Sang Kancil mahu membantu Sang Buaya mendapatkan makanan.",
+                    B: "Sang Kancil mahu mengembalikan keadaan asal supaya Sang Buaya terperangkap semula.",
+                    C: "Sang Kancil mahu Sang Kerbau mengangkat pokok itu berkali-kali.",
+                    D: "Sang Kancil mahu meninggalkan Sang Kerbau bersama Sang Buaya."
+                },
+                answer: "B"
+            },
+            {
+                id: 10,
+                stage: 3,
+                stageTitle: "TAHAP 3: SUKAR",
+                text: "Apakah pengajaran utama yang dapat dirumuskan daripada keseluruhan cerita berdasarkan tindakan watak-wataknya?",
+                options: {
+                    A: "Kita hendaklah menggunakan kekuatan untuk menyelesaikan semua masalah.",
+                    B: "Kita hendaklah sentiasa mempercayai semua pihak tanpa berfikir.",
+                    C: "Kita hendaklah mengenang budi, berwaspada dan menggunakan kebijaksanaan ketika menghadapi masalah.",
+                    D: "Kita hendaklah membalas setiap perbuatan buruk dengan perbuatan yang lebih buruk."
+                },
+                answer: "C"
+            }
+        ];
+
+        // --- GAME STATE ---
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let lives = 3;
+        let gameState = 'START'; // START, PLAYING, STAGE_PASS, GAMEOVER, VICTORY
+        let soundEnabled = true;
+        let invertY = false; // Standard: false (W/Up = Naik, S/Down = Turun)
+        let agentName = "Ejen Ali";
+        let agentClass = "5 Cerdik";
+
+        // --- WEB AUDIO API SOUND SYNTHESIS ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let engineNode = null;
+        let engineGain = null;
+
+        function initEngineAudio() {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(55, audioCtx.currentTime); // Low engine rumble
+                
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(220, audioCtx.currentTime);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                osc.start();
+                engineNode = osc;
+                engineGain = gain;
+            } catch(e) {}
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(90, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'stage') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.15);
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.6);
+            }
+        }
+
+        // --- THREE.JS 3D WORLD ENGINE ---
+        let scene, camera, renderer;
+        let airplaneGroup, propellerLeft, propellerRight;
+        let oceanMesh, mountainsGroup;
+        let gateGroup;
+        const gateList = [];
+
+        // Flight Movement Properties
+        const planePos = { x: 0, y: 3, z: 0 };
+        const planeTarget = { x: 0, y: 3 };
+        let forwardSpeed = 0.45; // Diperlahankan (daripada 0.8 kepada 0.45) supaya pemain ada masa membaca soalan
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x38bdf8);
+            scene.fog = new THREE.FogExp2(0x38bdf8, 0.003);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 6.5, -15); // Diundur sedikit ke belakang untuk pandangan penuh
+            camera.lookAt(0, 2.5, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfff7ed, 0.9);
+            dirLight.position.set(50, 100, -50);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            createOcean();
+            createMountains();
+            createTwinTurbinePlane();
+            
+            gateGroup = new THREE.Group();
+            scene.add(gateGroup);
+
+            window.addEventListener('resize', onWindowResize);
+            setupControls();
+
+            setupQuestionGates();
+            animate();
+        }
+
+        function createOcean() {
+            const geo = new THREE.PlaneGeometry(1000, 1000, 64, 64);
+            const mat = new THREE.MeshPhongMaterial({
+                color: 0x0284c7,
+                shininess: 80,
+                flatShading: true,
+                transparent: true,
+                opacity: 0.9
+            });
+            oceanMesh = new THREE.Mesh(geo, mat);
+            oceanMesh.rotation.x = -Math.PI / 2;
+            oceanMesh.position.y = 0;
+            scene.add(oceanMesh);
+        }
+
+        function createMountains() {
+            mountainsGroup = new THREE.Group();
+            const mountainGeo = new THREE.ConeGeometry(40, 70, 5);
+            const mountainMat = new THREE.MeshLambertMaterial({ color: 0x1e3a8a, flatShading: true });
+
+            for (let i = -10; i <= 10; i++) {
+                const mountain = new THREE.Mesh(mountainGeo, mountainMat);
+                mountain.position.set(i * 45 + (Math.random() * 20 - 10), 20, 450 + Math.random() * 50);
+                mountain.scale.set(1 + Math.random() * 0.5, 0.8 + Math.random() * 0.6, 1);
+                mountainsGroup.add(mountain);
+            }
+            scene.add(mountainsGroup);
+        }
+
+        function createTwinTurbinePlane() {
+            airplaneGroup = new THREE.Group();
+
+            const bodyGeo = new THREE.ConeGeometry(1.2, 7, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.rotation.x = Math.PI / 2;
+            airplaneGroup.add(body);
+
+            const glassGeo = new THREE.SphereGeometry(0.8, 8, 8);
+            const glassMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.1, metalness: 0.8 });
+            const glass = new THREE.Mesh(glassGeo, glassMat);
+            glass.position.set(0, 0.5, 1);
+            glass.scale.set(0.9, 0.6, 1.5);
+            airplaneGroup.add(glass);
+
+            const wingGeo = new THREE.BoxGeometry(10, 0.15, 1.8);
+            const wingMat = new THREE.MeshStandardMaterial({ color: 0xe11d48 });
+            const wing = new THREE.Mesh(wingGeo, wingMat);
+            wing.position.set(0, 0.2, 0.2);
+            airplaneGroup.add(wing);
+
+            const tailGeo = new THREE.BoxGeometry(0.15, 1.8, 1.2);
+            const tail = new THREE.Mesh(tailGeo, wingMat);
+            tail.position.set(0, 1.2, -2.8);
+            tail.rotation.x = -Math.PI / 6;
+            airplaneGroup.add(tail);
+
+            const engineMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+            const propMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+
+            const engineL = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.8, 8), engineMat);
+            engineL.rotation.x = Math.PI / 2;
+            engineL.position.set(-2.2, 0, 0.5);
+            airplaneGroup.add(engineL);
+
+            propellerLeft = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.05), propMat);
+            propellerLeft.position.set(-2.2, 0, 1.4);
+            airplaneGroup.add(propellerLeft);
+
+            const engineR = engineL.clone();
+            engineR.position.set(2.2, 0, 0.5);
+            airplaneGroup.add(engineR);
+
+            propellerRight = propellerLeft.clone();
+            propellerRight.position.set(2.2, 0, 1.4);
+            airplaneGroup.add(propellerRight);
+
+            // Dikecilkan saiz pesawat supaya keseluruhan bentuk kapal terbang kelihatan jelas
+            airplaneGroup.scale.set(0.7, 0.7, 0.7);
+
+            airplaneGroup.position.set(planePos.x, planePos.y, planePos.z);
+            scene.add(airplaneGroup);
+        }
+
+        // --- 3D GATE SYSTEM FOR QUESTIONS ---
+
+        function setupQuestionGates() {
+            while (gateGroup.children.length > 0) {
+                gateGroup.remove(gateGroup.children[0]);
+            }
+            gateList.length = 0;
+
+            const currentQ = QUESTIONS[currentQuestionIndex];
+            const letters = ['A', 'B', 'C', 'D'];
+            const startZ = 150; // Ditambah jarak mula dari 120 ke 150 unit untuk masa membaca lebih selesa
+            const spacingX = 9.5;
+
+            letters.forEach((letter, index) => {
+                // Posisi X diselaraskan: A di sebelah kiri skrin, D di sebelah kanan skrin
+                const xPos = (1.5 - index) * spacingX;
+                const gate = createRingGate(letter, xPos, 3.5, startZ);
+                gateGroup.add(gate);
+                gateList.push({
+                    mesh: gate,
+                    letter: letter,
+                    x: xPos,
+                    y: 3.5,
+                    z: startZ,
+                    passed: false
+                });
+            });
+
+            updateUIQuestion(currentQ);
+        }
+
+        function createRingGate(letter, x, y, z) {
+            const group = new THREE.Group();
+
+            const ringGeo = new THREE.TorusGeometry(3.2, 0.25, 12, 24);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: 0xf59e0b,
+                emissive: 0xd97706,
+                emissiveIntensity: 0.4,
+                roughness: 0.3
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            group.add(ring);
+
+            const portalGeo = new THREE.CircleGeometry(3.0, 24);
+            const portalMat = new THREE.MeshBasicMaterial({
+                color: 0xfef08a,
+                transparent: true,
+                opacity: 0.25,
+                side: THREE.DoubleSide
+            });
+            const portal = new THREE.Mesh(portalGeo, portalMat);
+            group.add(portal);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(64, 64, 60, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 70px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(letter, 64, 68);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelGeo = new THREE.PlaneGeometry(2.2, 2.2);
+            const labelMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+            const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+            labelMesh.position.set(0, 4.2, 0);
+            group.add(labelMesh);
+
+            group.position.set(x, y, z);
+            return group;
+        }
+
+        // --- CONTROLS & INPUT HANDLING ---
+
+        function setupControls() {
+            const keys = {};
+
+            const handleKeyEvent = (e, isDown) => {
+                if (!e) return;
+                const rawKey = e.key || e.code;
+                if (typeof rawKey === 'string' && rawKey.length > 0) {
+                    keys[rawKey.toLowerCase()] = isDown;
+                }
+            };
+
+            window.addEventListener('keydown', (e) => handleKeyEvent(e, true));
+            window.addEventListener('keyup', (e) => handleKeyEvent(e, false));
+
+            setInterval(() => {
+                if (gameState !== 'PLAYING') return;
+                const speed = 0.35;
+                
+                if (keys['w'] || keys['arrowup']) {
+                    planeTarget.y += invertY ? -speed : speed;
+                }
+                if (keys['s'] || keys['arrowdown']) {
+                    planeTarget.y += invertY ? speed : -speed;
+                }
+                // Diselaraskan: A / Kiri bergerak ke kiri skrin, D / Kanan bergerak ke kanan skrin
+                if (keys['a'] || keys['arrowleft']) planeTarget.x = Math.min(planeTarget.x + speed, 16);
+                if (keys['d'] || keys['arrowright']) planeTarget.x = Math.max(planeTarget.x - speed, -16);
+
+                planeTarget.y = Math.max(1, Math.min(9, planeTarget.y));
+            }, 20);
+
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+
+            window.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('#ui-layer') && !e.target.closest('#mobile-joystick-zone')) return;
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('pointermove', (e) => {
+                if (!isDragging || gameState !== 'PLAYING') return;
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                planeTarget.x -= deltaX * 0.04;
+                const dy = deltaY * 0.04;
+                planeTarget.y += invertY ? dy : -dy;
+
+                planeTarget.x = Math.max(Math.min(planeTarget.x, 16), -16);
+                planeTarget.y = Math.max(Math.min(planeTarget.y, 9), 1);
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('pointerup', () => { isDragging = false; });
+
+            const joystickZone = document.getElementById('mobile-joystick-zone');
+            const joystickKnob = document.getElementById('joystick-knob');
+            let joystickTouchId = null;
+
+            joystickZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                joystickTouchId = touch.identifier;
+            }, { passive: false });
+
+            joystickZone.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (joystickTouchId === null) return;
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === joystickTouchId) {
+                        const touch = e.changedTouches[i];
+                        const rect = joystickZone.getBoundingClientRect();
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
+
+                        let dx = touch.clientX - centerX;
+                        let dy = touch.clientY - centerY;
+                        const maxRadius = rect.width / 2;
+
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist > maxRadius) {
+                            dx = (dx / dist) * maxRadius;
+                            dy = (dy / dist) * maxRadius;
+                        }
+
+                        joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                        const dyStep = (dy / maxRadius) * 0.4;
+                        planeTarget.x -= (dx / maxRadius) * 0.4;
+                        planeTarget.y += invertY ? dyStep : -dyStep;
+
+                        planeTarget.x = Math.max(Math.min(planeTarget.x, 16), -16);
+                        planeTarget.y = Math.max(Math.min(planeTarget.y, 9), 1);
+                    }
+                }
+            }, { passive: false });
+
+            const resetJoystick = () => {
+                joystickTouchId = null;
+                joystickKnob.style.transform = `translate(0px, 0px)`;
+            };
+
+            joystickZone.addEventListener('touchend', resetJoystick);
+            joystickZone.addEventListener('touchcancel', resetJoystick);
+        }
+
+        // --- UI & QUESTION UPDATES ---
+
+        function updateUIQuestion(q) {
+            document.getElementById('hud-stage-num').innerText = q.stage;
+            document.getElementById('hud-stage-title').innerText = q.stageTitle;
+            
+            const questionsInStage = QUESTIONS.filter(item => item.stage === q.stage);
+            const indexInStage = questionsInStage.findIndex(item => item.id === q.id) + 1;
+            document.getElementById('hud-question-tracker').innerText = `Soalan ${indexInStage} / ${questionsInStage.length} (Soalan ${q.id}/10)`;
+
+            document.getElementById('current-question-text').innerText = `${q.id}. ${q.text}`;
+
+            const grid = document.getElementById('options-mini-grid');
+            grid.innerHTML = '';
+            for (const [key, val] of Object.entries(q.options)) {
+                const optEl = document.createElement('div');
+                optEl.className = 'bg-slate-800/80 rounded-xl p-2 md:p-2 text-xs md:text-xs flex items-center gap-1.5 border border-slate-700/60';
+                optEl.innerHTML = `<span class="bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded-md shrink-0 text-xs">${key}</span> <span class="text-slate-100 font-medium leading-tight">${val}</span>`;
+                grid.appendChild(optEl);
+            }
+        }
+
+        function checkAnswer(selectedLetter) {
+            const currentQ = QUESTIONS[currentQuestionIndex];
+
+            if (selectedLetter === currentQ.answer) {
+                score += 100;
+                document.getElementById('hud-score').innerText = score;
+                playSound('correct');
+
+                currentQuestionIndex++;
+
+                if (currentQuestionIndex >= QUESTIONS.length) {
+                    triggerVictory();
+                } else if (QUESTIONS[currentQuestionIndex].stage > currentQ.stage) {
+                    triggerStagePass(currentQ.stage);
+                } else {
+                    setupQuestionGates();
+                }
+            } else {
+                lives--;
+                updateLivesUI();
+                playSound('wrong');
+
+                if (lives <= 0) {
+                    triggerGameOver();
+                } else {
+                    setupQuestionGates();
+                }
+            }
+        }
+
+        function updateLivesUI() {
+            const container = document.getElementById('hud-lives');
+            container.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                const heart = document.createElement('i');
+                heart.className = `fa-solid fa-heart text-sm ${i < lives ? 'text-rose-500' : 'text-slate-600'}`;
+                container.appendChild(heart);
+            }
+        }
+
+        function triggerStagePass(passedStageNum) {
+            gameState = 'STAGE_PASS';
+            playSound('stage');
+            const title = document.getElementById('stage-pass-title');
+            const desc = document.getElementById('stage-pass-desc');
+
+            if (passedStageNum === 1) {
+                title.innerText = "TAHAP 1 (MUDAH) SELESAI!";
+                desc.innerText = "Tahniah! Anda telah melepasi soalan asas. Sedia ke Tahap Sederhana?";
+            } else if (passedStageNum === 2) {
+                title.innerText = "TAHAP 2 (SEDERHANA) SELESAI!";
+                desc.innerText = "Hebat! Hanya Tahap Sukar membuktikan kebijaksanaan sebenar anda!";
+            }
+
+            document.getElementById('modal-stage-pass').classList.remove('hidden');
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            document.getElementById('modal-gameover').classList.remove('hidden');
+        }
+
+        function triggerVictory() {
+            gameState = 'VICTORY';
+            playSound('stage');
+            
+            // Populasikan Maklumat Sijil
+            const safeName = agentName || "Ejen Muda";
+            const safeClass = agentClass || "Misi Rimba";
+            document.getElementById('cert-agent-name').innerText = safeName.toUpperCase();
+            document.getElementById('cert-agent-class').innerText = `KELAS: ${safeClass.toUpperCase()}`;
+            document.getElementById('cert-score-val').innerText = `${score} MATA`;
+            
+            const today = new Date();
+            const dateStr = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+            document.getElementById('cert-date-val').innerText = dateStr;
+
+            document.getElementById('modal-victory').classList.remove('hidden');
+        }
+
+        function downloadCertificatePDF() {
+            const certElement = document.getElementById('certificate-template');
+            const safeName = agentName || "Ejen_Muda";
+            
+            const options = {
+                margin:       10,
+                filename:     `Sijil_Penerbangan_${safeName.replace(/\s+/g, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(options).from(certElement).save();
+        }
+
+        // --- MAIN ANIMATION LOOP ---
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (oceanMesh) {
+                const pos = oceanMesh.geometry.attributes.position;
+                const time = Date.now() * 0.002;
+                for (let i = 0; i < pos.count; i++) {
+                    const u = pos.getX(i);
+                    const v = pos.getY(i);
+                    const z = Math.sin(u * 0.1 + time) * 0.4 + Math.cos(v * 0.1 + time) * 0.4;
+                    pos.setZ(i, z);
+                }
+                oceanMesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            if (propellerLeft && propellerRight) {
+                propellerLeft.rotation.z += 0.4;
+                propellerRight.rotation.z += 0.4;
+            }
+
+            if (gameState === 'PLAYING') {
+                planePos.x += (planeTarget.x - planePos.x) * 0.1;
+                planePos.y += (planeTarget.y - planePos.y) * 0.1;
+
+                // Telah diselaraskan: Condong pesawat (roll) selari dengan belokan kiri / kanan skrin
+                const roll = (planeTarget.x - planePos.x) * 0.1;
+                const pitch = (planePos.y - planeTarget.y) * 0.08;
+
+                airplaneGroup.position.set(planePos.x, planePos.y, planePos.z);
+                airplaneGroup.rotation.z = roll;
+                airplaneGroup.rotation.x = pitch;
+
+                gateList.forEach(gate => {
+                    gate.mesh.position.z -= forwardSpeed;
+
+                    if (!gate.passed && gate.mesh.position.z <= planePos.z + 1.0 && gate.mesh.position.z >= planePos.z - 1.0) {
+                        const dist = Math.hypot(planePos.x - gate.x, planePos.y - gate.y);
+                        if (dist < 3.2) {
+                            gate.passed = true;
+                            checkAnswer(gate.letter);
+                        }
+                    }
+                });
+
+                if (gateList.length > 0 && gateList[0].mesh.position.z < -10) {
+                    setupQuestionGates();
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- BUTTON EVENT BINDINGS ---
+
+        document.getElementById('btn-invert-toggle').addEventListener('click', () => {
+            invertY = !invertY;
+            const label = document.getElementById('invert-label');
+            label.innerText = invertY ? 'Kawalan: Terbalik (Inverted)' : 'Kawalan: Standard';
+        });
+
+        document.getElementById('start-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nameInput = document.getElementById('input-agent-name').value.trim();
+            const classInput = document.getElementById('input-agent-class').value.trim();
+
+            agentName = nameInput || "Ejen Muda";
+            agentClass = classInput || "Misi Rimba";
+
+            document.getElementById('modal-start').classList.add('hidden');
+            initEngineAudio();
+            gameState = 'PLAYING';
+        });
+
+        document.getElementById('btn-next-stage').addEventListener('click', () => {
+            document.getElementById('modal-stage-pass').classList.add('hidden');
+            setupQuestionGates();
+            gameState = 'PLAYING';
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            document.getElementById('modal-gameover').classList.add('hidden');
+            currentQuestionIndex = 0;
+            score = 0;
+            lives = 3;
+            document.getElementById('hud-score').innerText = score;
+            updateLivesUI();
+            setupQuestionGates();
+            gameState = 'PLAYING';
+        });
+
+        document.getElementById('btn-download-pdf').addEventListener('click', () => {
+            downloadCertificatePDF();
+        });
+
+        document.getElementById('btn-play-again').addEventListener('click', () => {
+            document.getElementById('modal-victory').classList.add('hidden');
+            currentQuestionIndex = 0;
+            score = 0;
+            lives = 3;
+            document.getElementById('hud-score').innerText = score;
+            updateLivesUI();
+            setupQuestionGates();
+            gameState = 'PLAYING';
+        });
+
+        document.getElementById('btn-sound-toggle').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high';
+                if (engineGain) engineGain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark';
+                if (engineGain) engineGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            }
+        });
+
+        window.onload = () => {
+            init3D();
+        };
+    </script>
+</body>
+</html>
